@@ -1,0 +1,21 @@
+server:
+  port: 8080
+  host: "0.0.0.0"
+
+database:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "postgres"
+  dbname: "syncphoto"
+  sslmode: "disable"
+
+aws:
+  region: "us-east-1"
+  s3_bucket: "syncphoto-uploads"
+
+jwt:
+  secret: "your-secret-key-change-in-production"
+
+log:
+  level: "debug"  # debug, info, warn, error
