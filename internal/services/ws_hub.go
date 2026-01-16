@@ -175,3 +175,25 @@ func (h *WSHub) NotifyPartnerStatus(userID, partnerID string, online bool) {
 			Msg("Failed to notify partner status")
 	}
 }
+
+// NotifyPairCreated notifies the second user when a pair is created
+func (h *WSHub) NotifyPairCreated(partnerID string, pairID, userAID, userBID string, createdAt time.Time) error {
+	message := WSMessage{
+		Type: "pair_created",
+		Data: map[string]interface{}{
+			"pair_id":    pairID,
+			"user_a_id":  userAID,
+			"user_b_id":  userBID,
+			"created_at": createdAt,
+		},
+	}
+	return h.SendToUser(partnerID, message)
+}
+
+// NotifyPairDeleted notifies the partner when a pair is deleted
+func (h *WSHub) NotifyPairDeleted(partnerID string) error {
+	message := WSMessage{
+		Type: "pair_deleted",
+	}
+	return h.SendToUser(partnerID, message)
+}

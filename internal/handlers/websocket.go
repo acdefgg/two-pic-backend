@@ -75,11 +75,41 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 	pair, err := h.pairService.GetPairByUserID(ctx, userID)
 	if err == nil && pair != nil {
+		// Пара существует - отправить pair_status с данными пары
 		partnerID := pair.UserAID
 		if partnerID == userID {
 			partnerID = pair.UserBID
 		}
 		h.hub.NotifyPartnerStatus(userID, partnerID, true)
+
+		// Отправить информацию о паре
+		pairStatusMsg := services.WSMessage{
+			Type: "pair_status",
+			Data: map[string]interface{}{
+				"has_pair": true,
+				"pair_id":  pair.ID,
+			},
+		}
+		if err := h.hub.SendToUser(userID, pairStatusMsg); err != nil {
+			log.Error().
+				Err(err).
+				Str("user_id", userID).
+				Msg("Failed to send pair_status message")
+		}
+	} else {
+		// Пары нет - отправить pair_status без пары
+		pairStatusMsg := services.WSMessage{
+			Type: "pair_status",
+			Data: map[string]interface{}{
+				"has_pair": false,
+			},
+		}
+		if err := h.hub.SendToUser(userID, pairStatusMsg); err != nil {
+			log.Error().
+				Err(err).
+				Str("user_id", userID).
+				Msg("Failed to send pair_status message")
+		}
 	}
 
 	log.Info().Str("user_id", userID).Msg("WebSocket connection established")

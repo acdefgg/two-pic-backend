@@ -61,7 +61,7 @@ func Run() {
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
-	pairHandler := handlers.NewPairHandler(pairService)
+	pairHandler := handlers.NewPairHandler(pairService, wsHub)
 	photoHandler := handlers.NewPhotoHandler(photoService)
 	wsHandler := handlers.NewWebSocketHandler(wsHub, userService, pairService, photoService)
 

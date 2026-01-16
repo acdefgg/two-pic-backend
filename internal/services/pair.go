@@ -112,3 +112,8 @@ func (s *PairService) DeletePair(ctx context.Context, pairID, userID string) err
 func (s *PairService) GetPairByUserID(ctx context.Context, userID string) (*models.Pair, error) {
 	return s.pairRepo.GetByUserID(ctx, userID)
 }
+
+// GetPairByID gets a pair by ID
+func (s *PairService) GetPairByID(ctx context.Context, pairID string) (*models.Pair, error) {
+	return s.pairRepo.GetByID(ctx, pairID)
+}

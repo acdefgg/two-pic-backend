@@ -14,12 +14,14 @@ import (
 // PairHandler handles pair-related HTTP requests
 type PairHandler struct {
 	pairService *services.PairService
+	wsHub       *services.WSHub
 }
 
 // NewPairHandler creates a new pair handler
-func NewPairHandler(pairService *services.PairService) *PairHandler {
+func NewPairHandler(pairService *services.PairService, wsHub *services.WSHub) *PairHandler {
 	return &PairHandler{
 		pairService: pairService,
+		wsHub:       wsHub,
 	}
 }
 
@@ -77,6 +79,23 @@ func (h *PairHandler) CreatePair(w http.ResponseWriter, r *http.Request) {
 		Str("pair_id", pair.ID).
 		Msg("Pair created")
 
+	// Определить ID партнера
+	partnerID := pair.UserBID
+	if pair.UserBID == userID {
+		partnerID = pair.UserAID
+	}
+
+	// Отправить уведомление партнеру через WebSocket (если партнер онлайн)
+	if h.wsHub.IsOnline(partnerID) {
+		if err := h.wsHub.NotifyPairCreated(partnerID, pair.ID, pair.UserAID, pair.UserBID, pair.CreatedAt); err != nil {
+			log.Error().
+				Err(err).
+				Str("partner_id", partnerID).
+				Msg("Failed to notify partner about pair creation")
+			// Не возвращаем ошибку, так как пара уже создана
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(pair)
@@ -93,7 +112,38 @@ func (h *PairHandler) DeletePair(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.pairService.DeletePair(ctx, pairID, userID)
+	// Получить информацию о паре для определения партнера перед удалением
+	pair, err := h.pairService.GetPairByID(ctx, pairID)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("user_id", userID).
+			Str("pair_id", pairID).
+			Msg("Failed to get pair")
+
+		statusCode := http.StatusInternalServerError
+		if err.Error() == "pair not found" {
+			statusCode = http.StatusNotFound
+		}
+
+		respondError(w, err.Error(), statusCode)
+		return
+	}
+
+	// Проверить, что пользователь является членом пары
+	if pair.UserAID != userID && pair.UserBID != userID {
+		respondError(w, "user is not a member of this pair", http.StatusForbidden)
+		return
+	}
+
+	// Определить ID партнера
+	partnerID := pair.UserAID
+	if pair.UserAID == userID {
+		partnerID = pair.UserBID
+	}
+
+	// Удалить пару
+	err = h.pairService.DeletePair(ctx, pairID, userID)
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -116,6 +166,17 @@ func (h *PairHandler) DeletePair(w http.ResponseWriter, r *http.Request) {
 		Str("user_id", userID).
 		Str("pair_id", pairID).
 		Msg("Pair deleted")
+
+	// Отправить уведомление партнеру через WebSocket (если партнер онлайн)
+	if h.wsHub.IsOnline(partnerID) {
+		if err := h.wsHub.NotifyPairDeleted(partnerID); err != nil {
+			log.Error().
+				Err(err).
+				Str("partner_id", partnerID).
+				Msg("Failed to notify partner about pair deletion")
+			// Не возвращаем ошибку, так как пара уже удалена
+		}
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
