@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -112,8 +113,24 @@ func (h *WSHub) GetPartnerID(userID string) (string, error) {
 
 // notifyPartnerStatus notifies the partner about online/offline status
 func (h *WSHub) notifyPartnerStatus(userID string, online bool) {
-	// This needs to be called with context to get the pair
-	// We'll handle this in the handler
+	// Используем background context для получения пары
+	ctx := context.Background()
+
+	// Получить пару пользователя
+	pair, err := h.pairService.GetPairByUserID(ctx, userID)
+	if err != nil {
+		// Пользователь не в паре - нечего уведомлять
+		return
+	}
+
+	// Определить ID партнера
+	partnerID := pair.UserAID
+	if partnerID == userID {
+		partnerID = pair.UserBID
+	}
+
+	// Отправить уведомление партнеру
+	h.NotifyPartnerStatus(userID, partnerID, online)
 }
 
 // TriggerPhoto handles trigger_photo message
