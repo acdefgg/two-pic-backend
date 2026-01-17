@@ -82,6 +82,21 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		}
 		h.hub.NotifyPartnerStatus(userID, partnerID, true)
 
+		// Проверить, онлайн ли партнер, и отправить статус подключающемуся пользователю
+		if h.hub.IsOnline(partnerID) {
+			online := true
+			partnerStatusMsg := services.WSMessage{
+				Type:   "partner_status",
+				Online: &online,
+			}
+			if err := h.hub.SendToUser(userID, partnerStatusMsg); err != nil {
+				log.Error().
+					Err(err).
+					Str("user_id", userID).
+					Msg("Failed to send partner status to connecting user")
+			}
+		}
+
 		// Отправить информацию о паре
 		pairStatusMsg := services.WSMessage{
 			Type: "pair_status",
