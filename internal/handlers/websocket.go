@@ -84,6 +84,11 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 
 		// Проверить, онлайн ли партнер, и отправить статус подключающемуся пользователю
 		if h.hub.IsOnline(partnerID) {
+			log.Debug().
+				Str("user_id", userID).
+				Str("partner_id", partnerID).
+				Msg("Partner is online, sending partner_status to connecting user")
+
 			online := true
 			partnerStatusMsg := services.WSMessage{
 				Type:   "partner_status",
@@ -98,6 +103,11 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Отправить информацию о паре
+		log.Debug().
+			Str("user_id", userID).
+			Str("pair_id", pair.ID).
+			Msg("Sending pair_status to connecting user (has_pair: true)")
+
 		pairStatusMsg := services.WSMessage{
 			Type: "pair_status",
 			Data: map[string]interface{}{
@@ -113,6 +123,10 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		}
 	} else {
 		// Пары нет - отправить pair_status без пары
+		log.Debug().
+			Str("user_id", userID).
+			Msg("Sending pair_status to connecting user (has_pair: false)")
+
 		pairStatusMsg := services.WSMessage{
 			Type: "pair_status",
 			Data: map[string]interface{}{
@@ -210,6 +224,10 @@ func (h *WebSocketHandler) handlePhotoUploaded(ctx context.Context, userID strin
 
 // sendError sends an error message to the WebSocket connection
 func (h *WebSocketHandler) sendError(conn *websocket.Conn, message string) {
+	log.Debug().
+		Str("error_message", message).
+		Msg("Sending error message via WebSocket")
+
 	msg := services.WSMessage{
 		Type:    "error",
 		Message: message,
@@ -220,6 +238,11 @@ func (h *WebSocketHandler) sendError(conn *websocket.Conn, message string) {
 
 // sendErrorToUser sends an error message to a user
 func (h *WebSocketHandler) sendErrorToUser(userID, message string) error {
+	log.Debug().
+		Str("user_id", userID).
+		Str("error_message", message).
+		Msg("Sending error message to user via WebSocket")
+
 	msg := services.WSMessage{
 		Type:    "error",
 		Message: message,

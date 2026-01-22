@@ -80,18 +80,62 @@ func (h *WSHub) SendToUser(userID string, message WSMessage) error {
 	h.mu.RUnlock()
 
 	if !exists {
+		log.Debug().
+			Str("user_id", userID).
+			Str("message_type", message.Type).
+			Msg("Attempted to send WebSocket message to offline user")
 		return fmt.Errorf("user %s is not connected", userID)
 	}
 
 	data, err := json.Marshal(message)
 	if err != nil {
+		log.Error().
+			Err(err).
+			Str("user_id", userID).
+			Str("message_type", message.Type).
+			Msg("Failed to marshal WebSocket message")
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
 	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		log.Error().
+			Err(err).
+			Str("user_id", userID).
+			Str("message_type", message.Type).
+			Msg("Failed to write WebSocket message")
 		h.Unregister(userID)
 		return fmt.Errorf("failed to send message: %w", err)
 	}
+
+	// Debug log with message details
+	logger := log.Debug().
+		Str("user_id", userID).
+		Str("message_type", message.Type)
+
+	// Add specific fields based on message type
+	if message.Timestamp != 0 {
+		logger = logger.Int64("timestamp", message.Timestamp)
+	}
+	if message.InitiatorID != "" {
+		logger = logger.Str("initiator_id", message.InitiatorID)
+	}
+	if message.PhotoID != "" {
+		logger = logger.Str("photo_id", message.PhotoID)
+	}
+	if message.S3URL != "" {
+		logger = logger.Str("s3_url", message.S3URL)
+	}
+	if message.Online != nil {
+		logger = logger.Bool("online", *message.Online)
+	}
+	if message.Message != "" {
+		logger = logger.Str("error_message", message.Message)
+	}
+	if message.Data != nil {
+		logger = logger.Interface("data", message.Data)
+	}
+
+	logger.Msg("WebSocket message sent")
 
 	return nil
 }
@@ -137,6 +181,11 @@ func (h *WSHub) notifyPartnerStatus(userID string, online bool) {
 func (h *WSHub) TriggerPhoto(initiatorID, partnerID string, timestamp int64) error {
 	// Check if partner is online
 	if !h.IsOnline(partnerID) {
+		log.Debug().
+			Str("initiator_id", initiatorID).
+			Str("partner_id", partnerID).
+			Msg("Partner is offline, sending error to initiator")
+
 		message := WSMessage{
 			Type:    "error",
 			Message: "Partner is offline",
@@ -155,6 +204,12 @@ func (h *WSHub) TriggerPhoto(initiatorID, partnerID string, timestamp int64) err
 		InitiatorID: initiatorID,
 		Timestamp:   timestamp,
 	}
+
+	log.Debug().
+		Str("initiator_id", initiatorID).
+		Str("partner_id", partnerID).
+		Int64("timestamp", timestamp).
+		Msg("Sending take_photo message to both users")
 
 	if err := h.SendToUser(initiatorID, takePhotoMsg); err != nil {
 		log.Error().Err(err).Str("user_id", initiatorID).Msg("Failed to send take_photo to initiator")
@@ -180,6 +235,12 @@ func (h *WSHub) NotifyPartnerStatus(userID, partnerID string, online bool) {
 		return
 	}
 
+	log.Debug().
+		Str("user_id", userID).
+		Str("partner_id", partnerID).
+		Bool("online", online).
+		Msg("Notifying partner about status change")
+
 	message := WSMessage{
 		Type:   "partner_status",
 		Online: &online,
@@ -195,6 +256,14 @@ func (h *WSHub) NotifyPartnerStatus(userID, partnerID string, online bool) {
 
 // NotifyPairCreated notifies the second user when a pair is created
 func (h *WSHub) NotifyPairCreated(partnerID string, pairID, userAID, userBID string, createdAt time.Time) error {
+	log.Debug().
+		Str("partner_id", partnerID).
+		Str("pair_id", pairID).
+		Str("user_a_id", userAID).
+		Str("user_b_id", userBID).
+		Time("created_at", createdAt).
+		Msg("Notifying partner about pair creation")
+
 	message := WSMessage{
 		Type: "pair_created",
 		Data: map[string]interface{}{
@@ -209,6 +278,10 @@ func (h *WSHub) NotifyPairCreated(partnerID string, pairID, userAID, userBID str
 
 // NotifyPairDeleted notifies the partner when a pair is deleted
 func (h *WSHub) NotifyPairDeleted(partnerID string) error {
+	log.Debug().
+		Str("partner_id", partnerID).
+		Msg("Notifying partner about pair deletion")
+
 	message := WSMessage{
 		Type: "pair_deleted",
 	}
