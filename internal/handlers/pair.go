@@ -179,7 +179,19 @@ func (h *PairHandler) DeletePair(w http.ResponseWriter, r *http.Request) {
 		Str("pair_id", pairID).
 		Msg("Pair deleted")
 
-	// Отправить уведомление партнеру через WebSocket (если партнер онлайн)
+	// Отправить уведомление обоим пользователям через WebSocket (если они онлайн)
+	// Уведомление инициатору удаления пары
+	if h.wsHub.IsOnline(userID) {
+		if err := h.wsHub.NotifyPairDeleted(userID); err != nil {
+			log.Error().
+				Err(err).
+				Str("user_id", userID).
+				Msg("Failed to notify user about pair deletion")
+			// Не возвращаем ошибку, так как пара уже удалена
+		}
+	}
+
+	// Уведомление партнеру
 	if h.wsHub.IsOnline(partnerID) {
 		if err := h.wsHub.NotifyPairDeleted(partnerID); err != nil {
 			log.Error().
