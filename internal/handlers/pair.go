@@ -85,7 +85,19 @@ func (h *PairHandler) CreatePair(w http.ResponseWriter, r *http.Request) {
 		partnerID = pair.UserAID
 	}
 
-	// Отправить уведомление партнеру через WebSocket (если партнер онлайн)
+	// Отправить уведомление обоим пользователям через WebSocket (если они онлайн)
+	// Уведомление инициатору создания пары
+	if h.wsHub.IsOnline(userID) {
+		if err := h.wsHub.NotifyPairCreated(userID, pair.ID, pair.UserAID, pair.UserBID, pair.CreatedAt); err != nil {
+			log.Error().
+				Err(err).
+				Str("user_id", userID).
+				Msg("Failed to notify user about pair creation")
+			// Не возвращаем ошибку, так как пара уже создана
+		}
+	}
+
+	// Уведомление партнеру
 	if h.wsHub.IsOnline(partnerID) {
 		if err := h.wsHub.NotifyPairCreated(partnerID, pair.ID, pair.UserAID, pair.UserBID, pair.CreatedAt); err != nil {
 			log.Error().
