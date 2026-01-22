@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/uuid"
 )
@@ -20,28 +21,42 @@ type PhotoService struct {
 	pairRepo  *repository.PairRepository
 	s3Client  *s3.Client
 	s3Bucket  string
+	endpoint  string
 }
 
 // NewPhotoService creates a new photo service
 func NewPhotoService(
 	photoRepo *repository.PhotoRepository,
 	pairRepo *repository.PairRepository,
-	awsRegion, s3Bucket string,
+	awsRegion, s3Bucket, accessKey, secretKey, endpoint string,
 ) (*PhotoService, error) {
+	// Создать статические credentials
+	creds := credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")
+
+	// Настроить AWS config со статическими credentials
 	cfg, err := config.LoadDefaultConfig(context.Background(),
 		config.WithRegion(awsRegion),
+		config.WithCredentialsProvider(creds),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
-	s3Client := s3.NewFromConfig(cfg)
+	// Определить протокол для endpoint
+	endpointURL := "https://" + endpoint
+
+	// Создать S3 client с кастомным endpoint
+	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(endpointURL)
+		o.UsePathStyle = true // Важно для Beget S3
+	})
 
 	return &PhotoService{
 		photoRepo: photoRepo,
 		pairRepo:  pairRepo,
 		s3Client:  s3Client,
 		s3Bucket:  s3Bucket,
+		endpoint:  endpoint,
 	}, nil
 }
 
@@ -86,7 +101,8 @@ func (s *PhotoService) GetPreSignedURL(ctx context.Context, userID, filename, co
 	}
 
 	// Create photo record in DB with placeholder URL (will be updated after upload)
-	s3URL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", s.s3Bucket, "us-east-1", s3Key)
+	// Для Beget S3 URL формат: https://endpoint/bucket/key
+	s3URL := fmt.Sprintf("https://%s/%s/%s", s.endpoint, s.s3Bucket, s3Key)
 	photo := &models.Photo{
 		ID:        photoID,
 		PairID:    pair.ID,

@@ -11,8 +11,12 @@ database:
   sslmode: "disable"
 
 aws:
-  region: "us-east-1"
-  s3_bucket: "syncphoto-uploads"
+  region: "ru1"
+  s3_bucket: "your-bucket-name"
+  access_key: "your-access-key"
+  secret_key: "your-secret-key"
+  endpoint: "s3.ru1.storage.beget.cloud"
+  disable_ssl: false
 
 jwt:
   secret: "your-secret-key-change-in-production"

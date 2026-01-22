@@ -34,8 +34,12 @@ type DatabaseConfig struct {
 
 // AWSConfig holds AWS configuration
 type AWSConfig struct {
-	Region   string `yaml:"region"`
-	S3Bucket string `yaml:"s3_bucket"`
+	Region     string `yaml:"region"`
+	S3Bucket   string `yaml:"s3_bucket"`
+	AccessKey  string `yaml:"access_key"`
+	SecretKey  string `yaml:"secret_key"`
+	Endpoint   string `yaml:"endpoint"`    // Кастомный endpoint для Beget
+	DisableSSL bool   `yaml:"disable_ssl"` // Опционально, если нужен HTTP
 }
 
 // JWTConfig holds JWT configuration

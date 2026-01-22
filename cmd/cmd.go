@@ -53,7 +53,15 @@ func Run() {
 	// Initialize services
 	userService := services.NewUserService(userRepo, cfg.JWT.Secret)
 	pairService := services.NewPairService(pairRepo, userRepo)
-	photoService, err := services.NewPhotoService(photoRepo, pairRepo, cfg.AWS.Region, cfg.AWS.S3Bucket)
+	photoService, err := services.NewPhotoService(
+		photoRepo,
+		pairRepo,
+		cfg.AWS.Region,
+		cfg.AWS.S3Bucket,
+		cfg.AWS.AccessKey,
+		cfg.AWS.SecretKey,
+		cfg.AWS.Endpoint,
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create photo service")
 	}
