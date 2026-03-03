@@ -67,11 +67,16 @@ func Run() {
 	}
 	wsHub := services.NewWSHub(pairService)
 
+	pushService, err := services.NewPushService(cfg.APNs)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create push service")
+	}
+
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
 	pairHandler := handlers.NewPairHandler(pairService, wsHub)
 	photoHandler := handlers.NewPhotoHandler(photoService)
-	wsHandler := handlers.NewWebSocketHandler(wsHub, userService, pairService, photoService)
+	wsHandler := handlers.NewWebSocketHandler(wsHub, userService, pairService, photoService, pushService)
 
 	// Setup router
 	r := chi.NewRouter()
@@ -91,6 +96,7 @@ func Run() {
 		// Protected routes
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(userService))
+			r.Put("/users/push-token", userHandler.UpdatePushToken)
 			r.Post("/pairs", pairHandler.CreatePair)
 			r.Delete("/pairs/{pair_id}", pairHandler.DeletePair)
 			r.Get("/photos", photoHandler.GetPhotos)

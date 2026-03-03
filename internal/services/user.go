@@ -138,3 +138,17 @@ func (s *UserService) CreateUser(ctx context.Context) (*models.User, error) {
 
 	return user, nil
 }
+
+// UpdatePushToken updates the push token for a user
+func (s *UserService) UpdatePushToken(ctx context.Context, userID string, pushToken string) error {
+	return s.userRepo.UpdatePushToken(ctx, userID, &pushToken)
+}
+
+// GetPushToken returns the push token for a user (nil if not set)
+func (s *UserService) GetPushToken(ctx context.Context, userID string) (*string, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return user.PushToken, nil
+}

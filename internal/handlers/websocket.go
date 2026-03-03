@@ -23,6 +23,7 @@ type WebSocketHandler struct {
 	userService  *services.UserService
 	pairService  *services.PairService
 	photoService *services.PhotoService
+	pushService  *services.PushService
 }
 
 // NewWebSocketHandler creates a new WebSocket handler
@@ -31,12 +32,14 @@ func NewWebSocketHandler(
 	userService *services.UserService,
 	pairService *services.PairService,
 	photoService *services.PhotoService,
+	pushService *services.PushService,
 ) *WebSocketHandler {
 	return &WebSocketHandler{
 		hub:          hub,
 		userService:  userService,
 		pairService:  pairService,
 		photoService: photoService,
+		pushService:  pushService,
 	}
 }
 
@@ -174,6 +177,8 @@ func (h *WebSocketHandler) handleMessage(ctx context.Context, userID string, msg
 		return h.handleTriggerPhoto(ctx, userID, msg)
 	case "photo_uploaded":
 		return h.handlePhotoUploaded(ctx, userID, msg)
+	case "call_partner":
+		return h.handleCallPartner(ctx, userID)
 	default:
 		return h.sendErrorToUser(userID, "Unknown message type")
 	}
@@ -220,6 +225,51 @@ func (h *WebSocketHandler) handlePhotoUploaded(ctx context.Context, userID strin
 		Msg("Photo uploaded")
 
 	return nil
+}
+
+// handleCallPartner handles call_partner message — sends push notification to offline partner
+func (h *WebSocketHandler) handleCallPartner(ctx context.Context, userID string) error {
+	pair, err := h.pairService.GetPairByUserID(ctx, userID)
+	if err != nil {
+		return h.sendErrorToUser(userID, "You are not in a pair")
+	}
+
+	partnerID := pair.UserAID
+	if partnerID == userID {
+		partnerID = pair.UserBID
+	}
+
+	deliveredVia := "websocket"
+
+	if h.hub.IsOnline(partnerID) {
+		msg := services.WSMessage{
+			Type: "partner_calling",
+		}
+		if err := h.hub.SendToUser(partnerID, msg); err != nil {
+			log.Error().Err(err).Str("partner_id", partnerID).Msg("Failed to send partner_calling via WS")
+		}
+	} else {
+		pushToken, err := h.userService.GetPushToken(ctx, partnerID)
+		if err != nil || pushToken == nil || *pushToken == "" {
+			log.Warn().Str("partner_id", partnerID).Msg("Partner has no push token")
+			return h.sendErrorToUser(userID, "Partner has no push notifications enabled")
+		}
+
+		if err := h.pushService.SendCallNotification(*pushToken); err != nil {
+			log.Error().Err(err).Str("partner_id", partnerID).Msg("Failed to send push notification")
+			return h.sendErrorToUser(userID, "Failed to send push notification")
+		}
+
+		deliveredVia = "push"
+	}
+
+	response := services.WSMessage{
+		Type: "call_sent",
+		Data: map[string]interface{}{
+			"delivered_via": deliveredVia,
+		},
+	}
+	return h.hub.SendToUser(userID, response)
 }
 
 // sendError sends an error message to the WebSocket connection

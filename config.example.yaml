@@ -23,3 +23,10 @@ jwt:
 
 log:
   level: "debug"  # debug, info, warn, error
+
+apns:
+  key_path: "AuthKey_XXXXXXXXXX.p8"  # path to .p8 file from Apple Developer
+  key_id: "XXXXXXXXXX"               # Key ID from Apple Developer
+  team_id: "XXXXXXXXXX"              # Team ID from Apple Developer
+  bundle_id: "com.yourapp.twopic"    # iOS app Bundle ID
+  production: false                  # false = sandbox, true = production

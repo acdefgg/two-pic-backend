@@ -14,6 +14,16 @@ type Config struct {
 	AWS      AWSConfig      `yaml:"aws"`
 	JWT      JWTConfig      `yaml:"jwt"`
 	Log      LogConfig      `yaml:"log"`
+	APNs     APNsConfig     `yaml:"apns"`
+}
+
+// APNsConfig holds Apple Push Notification service configuration
+type APNsConfig struct {
+	KeyPath    string `yaml:"key_path"`
+	KeyID      string `yaml:"key_id"`
+	TeamID     string `yaml:"team_id"`
+	BundleID   string `yaml:"bundle_id"`
+	Production bool   `yaml:"production"`
 }
 
 // ServerConfig holds server configuration
