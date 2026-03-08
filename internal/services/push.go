@@ -57,6 +57,20 @@ func (s *PushService) SendCallNotification(pushToken string) error {
 		Sound("default").
 		MutableContent()
 
+	return s.send(pushToken, p)
+}
+
+// SendPairDeletedNotification sends a push when the pair has been broken
+func (s *PushService) SendPairDeletedNotification(pushToken string) error {
+	p := payload.NewPayload().
+		AlertTitle("TwoPic").
+		AlertBody("Твоя пара была разорвана 💔").
+		Sound("default")
+
+	return s.send(pushToken, p)
+}
+
+func (s *PushService) send(pushToken string, p *payload.Payload) error {
 	notification := &apns2.Notification{
 		DeviceToken: pushToken,
 		Topic:       s.bundleID,

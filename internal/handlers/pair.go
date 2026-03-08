@@ -14,13 +14,17 @@ import (
 // PairHandler handles pair-related HTTP requests
 type PairHandler struct {
 	pairService *services.PairService
+	userService *services.UserService
+	pushService *services.PushService
 	wsHub       *services.WSHub
 }
 
 // NewPairHandler creates a new pair handler
-func NewPairHandler(pairService *services.PairService, wsHub *services.WSHub) *PairHandler {
+func NewPairHandler(pairService *services.PairService, userService *services.UserService, pushService *services.PushService, wsHub *services.WSHub) *PairHandler {
 	return &PairHandler{
 		pairService: pairService,
+		userService: userService,
+		pushService: pushService,
 		wsHub:       wsHub,
 	}
 }
@@ -198,7 +202,16 @@ func (h *PairHandler) DeletePair(w http.ResponseWriter, r *http.Request) {
 				Err(err).
 				Str("partner_id", partnerID).
 				Msg("Failed to notify partner about pair deletion")
-			// Не возвращаем ошибку, так как пара уже удалена
+		}
+	} else {
+		pushToken, err := h.userService.GetPushToken(ctx, partnerID)
+		if err == nil && pushToken != nil && *pushToken != "" {
+			if err := h.pushService.SendPairDeletedNotification(*pushToken); err != nil {
+				log.Error().
+					Err(err).
+					Str("partner_id", partnerID).
+					Msg("Failed to send pair_deleted push notification")
+			}
 		}
 	}
 
