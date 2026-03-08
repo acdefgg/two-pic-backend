@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./AuthKey_WCYF8XQS2X.p8:/app/AuthKey_WCYF8XQS2X.p8:ro
+    restart: unless-stopped
